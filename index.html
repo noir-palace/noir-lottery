@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noir Palace Lottery Board</title>
+  <style>
+    body {
+      background-color: black;
+      color: gold;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    h1 {
+      text-shadow: 0 0 10px gold;
+      margin-top: 40px;
+    }
+    table {
+      margin: 10px;
+      border-collapse: collapse;
+      display: inline-block;
+    }
+    th, td {
+      border: 1px solid gold;
+      padding: 6px 12px;
+    }
+    input, select, button {
+      margin: 8px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: none;
+    }
+    button {
+      background-color: purple;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: orange;
+    }
+    #status {
+      margin-top: 10px;
+      color: cyan;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎟️ Noir Palace Lottery Board 🎟️</h1>
+
+  <div id="lotteryBoard"></div>
+
+  <br>
+  <input type="text" id="playerName" placeholder="Name">
+  <select id="ticketCount">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="5">5</option>
+  </select>
+  <button onclick="buyTickets()">Buy</button>
+  <button onclick="drawWinner()">Draw</button>
+  <button onclick="resetBoard()">Reset</button>
+  <button onclick="saveToGitHub()">Save</button>
+  <button onclick="loadFromGitHub()">Reload</button>
+
+  <div id="status">Loading...</div>
+
+  <script>
+    const repoOwner = "noir-palace";
+    const repoName = "noir-lottery";
+    const filePath = "lottery.json";
+
+    const token = ""; // Προαιρετικά — θα το κρατήσουμε άδειο για κοινή χρήση
+    let tickets = Array.from({length: 50}, (_, i) => ({ number: i + 1, name: "" }));
+
+    function renderBoard() {
+      const board = document.getElementById("lotteryBoard");
+      board.innerHTML = "";
+      for (let row = 0; row < 5; row++) {
+        const table = document.createElement("table");
+        const header = document.createElement("tr");
+        header.innerHTML = "<th>No.</th><th>Name</th>";
+        table.appendChild(header);
+        for (let i = row * 10; i < row * 10 + 10; i++) {
+          const t = tickets[i];
+          const rowEl = document.createElement("tr");
+          rowEl.innerHTML = `<td>${t.number}</td><td>${t.name || ""}</td>`;
+          table.appendChild(rowEl);
+        }
+        board.appendChild(table);
+      }
+    }
+
+    async function buyTickets() {
+      const name = document.getElementById("playerName").value.trim();
+      const count = parseInt(document.getElementById("ticketCount").value);
+      if (!name) return alert("Enter a name first!");
+      const freeTickets = tickets.filter(t => !t.name);
+      if (freeTickets.length < count) return alert("Not enough free tickets!");
+      for (let i = 0; i < count; i++) freeTickets[i].name = name;
+      renderBoard();
+    }
+
+    function drawWinner() {
+      const filled = tickets.filter(t => t.name);
+      if (!filled.length) return alert("No tickets sold yet!");
+      const winner = filled[Math.floor(Math.random() * filled.length)];
+      alert(`🎉 Winner: ${winner.name} (#${winner.number}) 🎉`);
+    }
+
+    function resetBoard() {
+      tickets.forEach(t => t.name = "");
+      renderBoard();
+    }
+
+    async function saveToGitHub() {
+      if (!token) return alert("No token configured for saving.");
+      const content = btoa(JSON.stringify(tickets, null, 2));
+      const url = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${filePath}`;
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Authorization": `token ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: "Update lottery board",
+          content
+        })
+      });
+      document.getElementById("status").textContent = res.ok ? "✅ Saved successfully" : "❌ Save failed";
+    }
+
+    async function loadFromGitHub() {
+      document.getElementById("status").textContent = "Loading...";
+      try {
+        const res = await fetch(`https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/${filePath}`);
+        if (!res.ok) throw new Error("Cannot load data");
+        tickets = await res.json();
+        renderBoard();
+        document.getElementById("status").textContent = "✅ Data loaded.";
+      } catch {
+        renderBoard();
+        document.getElementById("status").textContent = "⚠️ Failed to load data.";
+      }
+    }
+
+    loadFromGitHub();
+  </script>
+</body>
+</html>
